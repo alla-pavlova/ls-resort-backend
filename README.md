@@ -1,8 +1,10 @@
 # LS Resort Backend
 
-Backend API for the Body Restoration Studio website.
+Backend for a wellness-oriented web platform built with FastAPI.
+Includes services, reviews, contact forms, authentication, admin routes, and search.
 
-This service provides authentication, API endpoints, and integration logic for the LS Resort frontend application.
+This repository contains the FastAPI backend for a wellness-oriented web platform.
+It includes public-facing routes, reviews, contact forms, authentication, admin features, and API documentation.
 
 ## Project Purpose
 
@@ -12,6 +14,8 @@ Backend supports:
 - Admin bootstrap logic
 - Contact forms and service endpoints
 - Body restoration studio infrastructure
+
+Frontend demo: https://lebedi.pages.dev
 
 ## Tech Stack
 - FastAPI
@@ -24,7 +28,7 @@ Backend supports:
 ## Quick start (Windows)
 
 ```bash
-git clone https://github.com/Pavlo-fo95/ls-resort-backend.git
+git clone https://github.com/alla-pavlova/ls-resort-backend.git
 cd ls-resort-backend
 python -m venv .venv
 .venv\Scripts\activate
