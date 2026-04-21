@@ -24,6 +24,7 @@ def cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
     if raw.strip():
         return [x.strip() for x in raw.split(",") if x.strip()]
+
     return [
         "https://lebedi.pages.dev",
         "http://localhost:5173",
@@ -36,7 +37,7 @@ def cors_origins() -> list[str]:
 
 
 app = FastAPI(
-    title="LebedI",
+    title="Resort",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -61,5 +62,5 @@ app.include_router(search.router)
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "service": "LebedI"}
+    return {"status": "ok", "service": "Resort"}
  # python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

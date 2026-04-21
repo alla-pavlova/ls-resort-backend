@@ -22,7 +22,7 @@ async def get_db():
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 # ---------- email/phone register ----------
-@router.post("/register", response_model=TokenOut)
+@router.post("/register")
 async def register(payload: RegisterIn, db: AsyncSession = Depends(get_db)):
     if not payload.email and not payload.phone:
         raise HTTPException(400, "Provide email or phone")
@@ -39,35 +39,62 @@ async def register(payload: RegisterIn, db: AsyncSession = Depends(get_db)):
         if exists:
             raise HTTPException(409, "Phone already used")
 
-    u = User(email=payload.email, phone=payload.phone, password_hash=hash_password(payload.password))
+    u = User(
+        email=payload.email,
+        phone=payload.phone,
+        password_hash=hash_password(payload.password),
+        role="user",
+    )
     db.add(u)
     await db.commit()
     await db.refresh(u)
 
     token = create_access_token(str(u.id))
-    return {"access_token": token, "token_type": "bearer"}
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": u.id,
+            "email": u.email,
+            "phone": u.phone,
+            "role": u.role
+        }
+    }
 
 
 # ---------- email/phone login ----------
-@router.post("/login", response_model=TokenOut)
+@router.post("/login")
 async def login(payload: LoginIn, db: AsyncSession = Depends(get_db)):
     q = select(User).where(or_(User.email == payload.login, User.phone == payload.login))
     u = await db.scalar(q)
 
     if not u or not verify_password(payload.password, u.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
 
     token = create_access_token(str(u.id))
-    return {"access_token": token, "token_type": "bearer"}
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": u.id,
+            "email": u.email,
+            "phone": u.phone,
+            "role": u.role
+        }
+    }
 
 
 # ---------- Google verify (ScanText-style) ----------
-@router.post("/google/verify", response_model=TokenOut)
+@router.post("/google/verify")
 async def google_verify(payload: GoogleVerifyIn, db: AsyncSession = Depends(get_db)):
     if not payload.credential:
         raise HTTPException(400, "Missing credential")
 
-    # 🔎 Проверка ID-токена через Google
     url = "https://oauth2.googleapis.com/tokeninfo"
 
     async with httpx.AsyncClient(timeout=15) as client:
@@ -78,37 +105,27 @@ async def google_verify(payload: GoogleVerifyIn, db: AsyncSession = Depends(get_
 
     data = resp.json()
 
-    # защита: токен должен быть выдан твоему приложению
-    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     aud = data.get("aud")
-    if GOOGLE_CLIENT_ID and aud != GOOGLE_CLIENT_ID:
-        raise HTTPException(401, "Google token has wrong audience")
-
     email = data.get("email")
     sub = data.get("sub")
-    aud = data.get("aud")
+
+    if google_client_id and aud != google_client_id:
+        raise HTTPException(401, "Google token has wrong audience")
 
     if not email or not sub:
         raise HTTPException(401, "Google token invalid (no email/sub)")
 
-    # Проверяем, что токен выдан именно нашему приложению
-    if GOOGLE_CLIENT_ID and aud != GOOGLE_CLIENT_ID:
-        raise HTTPException(401, "Google token has wrong audience")
-
-    # 🔍 Ищем пользователя
     u = await db.scalar(select(User).where(User.email == email))
 
     if not u:
-        # создаем нового пользователя с безопасным случайным паролем
         random_pass = secrets.token_urlsafe(16)
-
         u = User(
             email=email,
             phone=None,
             password_hash=hash_password(random_pass),
-            role="user"
+            role="user",
         )
-
         db.add(u)
         await db.commit()
         await db.refresh(u)
@@ -117,7 +134,13 @@ async def google_verify(payload: GoogleVerifyIn, db: AsyncSession = Depends(get_
 
     return {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": u.id,
+            "email": u.email,
+            "phone": u.phone,
+            "role": u.role
+        }
     }
 
 # ---------- Users: GET all / GET by id / DELETE by id ----------
